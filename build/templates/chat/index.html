@@ -1,0 +1,44 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chat App</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        #chat { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; }
+        #message { width: 80%; }
+    </style>
+</head>
+<body>
+    <h1>Chat Application</h1>
+    <div>
+        <input id="username" placeholder="Enter your username">
+        <button id="connect">Connect</button>
+    </div>
+    <div id="chat"></div>
+    <div>
+        <input id="message" placeholder="Type a message">
+        <button id="send">Send</button>
+    </div>
+    <script>
+        let ws;
+        document.getElementById('connect').onclick = () => {
+            const username = document.getElementById('username').value;
+            ws = new WebSocket(`ws://localhost:8080/ws`);
+            ws.onopen = () => console.log('Connected to WebSocket');
+            ws.onmessage = (event) => {
+                const chat = document.getElementById('chat');
+                chat.innerHTML += `<p>${event.data}</p>`;
+                chat.scrollTop = chat.scrollHeight;
+            };
+        };
+
+        document.getElementById('send').onclick = () => {
+            const message = document.getElementById('message').value;
+            ws.send(JSON.stringify({ from: "user1", to: "user2", content: message }));
+            document.getElementById('message').value = '';
+        };
+    </script>
+</body>
+</html>
