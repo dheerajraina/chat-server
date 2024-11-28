@@ -40,31 +40,26 @@ void websocket_chat(crow::SimpleApp &app)
                      { std::cout << "WebSocket connection closed: " << reason << "\n"; });
 }
 
-std::string load_html(const std::string &file_path)
-{
-        std::ifstream file(file_path);
-        if (!file.is_open())
-        {
-                return "<h1>Error: Could not open HTML file.</h1>";
-        }
-        std::stringstream buffer;
-        buffer << file.rdbuf();
-        return buffer.str();
-}
-
 int main()
 {
         try
         {
                 crow::SimpleApp app;
 
+                app.loglevel(crow::LogLevel::Debug);
+
                 websocket_chat(app);
 
-                CROW_ROUTE(app, "/web") // render UI
-                ([]()
-                 {
-        std::string html_content = load_html("../ui/index.html");
-        return html_content; });
+                CROW_ROUTE(app, "/web")
+                    .methods(crow::HTTPMethod::GET)(
+                        []()
+                        {
+                                const std::string file_path = "login_signup/index.html";
+
+                                CROW_LOG_DEBUG << "Serving file: " << file_path;
+                                auto page = crow::mustache::load(file_path);
+                                return page.render();
+                        });
 
                 // Start server
                 app.port(8080).multithreaded().run();
