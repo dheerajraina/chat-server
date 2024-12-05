@@ -23,40 +23,40 @@ mongocxx::client mongo_client(mongo_uri);
 
 int ping_mongo_connection()
 {
-        try
-        {
-                auto admin = mongo_client["admin"];
-                auto command = make_document(kvp("ping", 1));
-                auto result = admin.run_command(command.view());
-                std::cout << bsoncxx::to_json(result) << "\n";
-                std::cout << "Pinged your deployment. You successfully connected to MongoDB \n";
-        }
-        catch (const mongocxx::exception &e)
-        {
-                std::cerr << "An exception occured: " << e.what() << "\n";
-                return EXIT_FAILURE;
-        }
+	try
+	{
+		auto admin = mongo_client["admin"];
+		auto command = make_document(kvp("ping", 1));
+		auto result = admin.run_command(command.view());
+		std::cout << bsoncxx::to_json(result) << "\n";
+		std::cout << "Pinged your deployment. You successfully connected to MongoDB \n";
+	}
+	catch (const mongocxx::exception &e)
+	{
+		std::cerr << "An exception occured: " << e.what() << "\n";
+		return EXIT_FAILURE;
+	}
 }
 
 // Utility to validate JSON input
 bool is_valid_json(const crow::json::rvalue &body, const std::vector<std::string> &keys)
 {
-        for (const auto &key : keys)
-        {
-                if (!body.has(key))
-                {
-                        return false;
-                }
-        }
-        return true;
+	for (const auto &key : keys)
+	{
+		if (!body.has(key))
+		{
+			return false;
+		}
+	}
+	return true;
 }
 
 // API: Create user account
 void register_account(crow::SimpleApp &app)
 {
 
-        CROW_ROUTE(app, "/register").methods("POST"_method)([](const crow::request &req)
-                                                            {
+	CROW_ROUTE(app, "/register").methods("POST"_method)([](const crow::request &req)
+							    {
                                                                     try
                                                                     {
                                                                             auto body = crow::json::load(req.body);
@@ -94,28 +94,66 @@ void register_account(crow::SimpleApp &app)
                                                                     } });
 }
 
+void login(crow::SimpleApp &app)
+{
+	CROW_ROUTE(app, "/login")
+	    .methods("POST"_method)([](const crow::request &req)
+				    {
+                                        try{
+                                                auto body = crow::json::load(req.body);
+
+                                                if (!is_valid_json(body, {"username", "password"}))
+                                                {
+
+                                                        return crow::response(400, "Invalid input");
+                                                }
+
+                                                auto db = mongo_client["chat_server"];
+                                                auto users_collection = db["users"];
+
+                                                // Check if user exists
+                                                auto result = users_collection.find_one(make_document(
+                                                        kvp("username", body["username"].s()),
+                                                        kvp("password", body["password"].s())
+                                                        ));
+                                                if (result)
+                                                {
+                                                        return crow::response(200, "Successfully logged in");
+
+                                                }
+
+                                                return crow::response(409, "Invalid username or password!");
+
+                                        }
+                                        catch (const std::exception &e)
+                                        {
+                                                std::cerr << e.what() << '\n';
+
+                                        } });
+}
+
 // WebSocket: Handle messaging
 void websocket_chat(crow::SimpleApp &app)
 {
-        CROW_ROUTE(app, "/ws").websocket(&app).onopen([](crow::websocket::connection &conn)
-                                                      {
+	CROW_ROUTE(app, "/ws").websocket(&app).onopen([](crow::websocket::connection &conn)
+						      {
                                                               std::cout << "WebSocket connection opened\n";
                                                               clients.insert(&conn); })
 
-            .onmessage([](crow::websocket::connection &conn, const std::string &message, bool is_binary)
-                       {
-                               // Parse message (example: {"from": "user1", "to": "user2", "content": "Hello"})
-                               Json::Reader reader;
-                               Json::Value msg_json;
-                               if (!reader.parse(message, msg_json))
-                               {
-                                       conn.send_text("Invalid message format");
-                                       return;
-                               }
+	    .onmessage([](crow::websocket::connection &conn, const std::string &message, bool is_binary)
+		       {
+			       // Parse message (example: {"from": "user1", "to": "user2", "content": "Hello"})
+			       Json::Reader reader;
+			       Json::Value msg_json;
+			       if (!reader.parse(message, msg_json))
+			       {
+				       conn.send_text("Invalid message format");
+				       return;
+			       }
 
-                               std::string from = msg_json["from"].asString();
-                               std::string to = msg_json["to"].asString();
-                               std::string content = msg_json["content"].asString();
+			       std::string from = msg_json["from"].asString();
+			       std::string to = msg_json["to"].asString();
+			       std::string content = msg_json["content"].asString();
 
                                for (auto client : clients)
                                {
@@ -131,34 +169,43 @@ void websocket_chat(crow::SimpleApp &app)
 int main()
 {
 
-        try
-        {
-                crow::SimpleApp app;
+	try
+	{
+		crow::SimpleApp app;
 
-                app.loglevel(crow::LogLevel::Debug);
+		app.loglevel(crow::LogLevel::Debug);
 
-                ping_mongo_connection();
+		ping_mongo_connection();
 
-                // Register APIs and WebSocket
-                register_account(app);
-                websocket_chat(app);
+		// Register APIs and WebSocket
+		register_account(app);
+		login(app);
+		websocket_chat(app);
 
-                CROW_ROUTE(app, "/web")
-                    .methods(crow::HTTPMethod::GET)(
-                        []()
-                        {
-                                const std::string file_path = "login_signup/index.html";
+		CROW_ROUTE(app, "/web")
+		    .methods(crow::HTTPMethod::GET)(
+			[]()
+			{
+				//  std::string file_path = "static/" + filename;
+				//  res.body("dshduhshd");
+				const std::string file_path = "login_signup/index.html";
 
-                                CROW_LOG_DEBUG << "Serving file: " << file_path;
-                                auto page = crow::mustache::load(file_path);
-                                return page.render();
-                        });
+				CROW_LOG_DEBUG << "Serving file: " << file_path;
+				auto page = crow::mustache::load(file_path);
+				return page.render();
+			});
 
-                // Start server
-                app.port(8080).multithreaded().run();
-        }
-        catch (const std::exception &ex)
-        {
-                std::cerr << "Error: " << ex.what() << std::endl;
-        }
+		CROW_ROUTE(app, "/web/chat")
+		([]()
+		 {
+                         std::string html_content = load_html("templates/chat/index.html");
+                         return html_content; });
+
+		// Start server
+		app.port(8080).multithreaded().run();
+	}
+	catch (const std::exception &ex)
+	{
+		std::cerr << "Error: " << ex.what() << std::endl;
+	}
 }
