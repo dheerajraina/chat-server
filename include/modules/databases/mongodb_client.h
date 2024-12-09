@@ -20,5 +20,5 @@ void init_mongo_connection();
 int ping_mongo_connection();
 std::optional<bsoncxx::document::value> find_one_record(std::string collection_name, bsoncxx::document::value filter);
 std::optional<mongocxx::v_noabi::result::insert_one> insert_one_record(std::string collection_name, bsoncxx::document::value record);
-
+std::vector<std::string> find_multiple_records(std::string collection_name, std::optional<bsoncxx::document::value> filter);
 #endif

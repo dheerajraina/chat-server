@@ -60,3 +60,19 @@ std::optional<mongocxx::v_noabi::result::insert_one> insert_one_record(std::stri
 
         return result;
 }
+
+std::vector<std::string> find_multiple_records(std::string collection_name, std::optional<bsoncxx::document::value> filter)
+{
+        auto db = (*mongo_client)["chat_server"];
+        auto collection = db[collection_name];
+
+        auto cursor = filter ? collection.find(filter->view()) : collection.find({});
+
+        std::vector<std::string> result;
+        for (auto &&doc : cursor)
+        {
+                result.push_back(bsoncxx::to_json(doc));
+        }
+
+        return result;
+}
