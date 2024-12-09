@@ -1,15 +1,29 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat App</title>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        #chat { border: 1px solid #ccc; padding: 10px; height: 300px; overflow-y: auto; }
-        #message { width: 80%; }
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+        }
+
+        #chat {
+            border: 1px solid #ccc;
+            padding: 10px;
+            height: 300px;
+            overflow-y: auto;
+        }
+
+        #message {
+            width: 80%;
+        }
     </style>
 </head>
+
 <body>
     <h1>Chat Application</h1>
     <div>
@@ -39,6 +53,27 @@
             ws.send(JSON.stringify({ from: "user1", to: "user2", content: message }));
             document.getElementById('message').value = '';
         };
+
+        document.addEventListener("DOMContentLoaded", async () => {
+            try {
+                const response = await fetch("http://localhost:8080/get-contacts", {
+                    method: "GET",
+                    headers: {
+                        'Content-Type': 'application/json',
+                    }
+                });
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    throw new Error("Server Error:" + errorText);
+                }
+                const data = await response.text();
+                console.log(data);
+
+            } catch (error) {
+                console.log(error.message);
+            }
+        });
     </script>
 </body>
+
 </html>
