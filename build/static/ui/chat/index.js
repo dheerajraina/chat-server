@@ -21,13 +21,12 @@ window.onload = () => {
                         messageDiv.className = 'comment other';
                         const textMsgBubble = document.createElement('div');
                         textMsgBubble.className = 'bubble';
-                        textMsgBubble.textContent = event.data;
+                        textMsgBubble.textContent = JSON.parse(event.data).content;
 
                         messageDiv.appendChild(textMsgBubble);
                         msgContainer.appendChild(messageDiv);
                         msgText.value = '';
                         msgContainer.scrollTop = msgContainer.scrollHeight;
-                        console.log(`message incoming ${event.data}`);
                 };
 
         } catch (error) {

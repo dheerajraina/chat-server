@@ -1,136 +1,24 @@
 #include <crow.h>
-#include <mongocxx/client.hpp>
-#include <mongocxx/instance.hpp>
 #include <iostream>
+#include <unordered_map>
+#include <mutex>
 #include <bsoncxx/json.hpp>
 #include <jsoncpp/json/json.h>
 #include <set>
 #include <fstream>
 #include <sstream>
 #include <string>
-#include <mongocxx/exception/exception.hpp>
-#include "environment/env.h" // env file
+#include "modules/databases/mongodb_client.h"
+#include "modules/auth/routes/signup_route.h"
+#include "modules/auth/routes/login_route.h"
+#include "modules/user/routes/get_contacts_route.h"
 
 using bsoncxx::builder::basic::kvp;
 using bsoncxx::builder::basic::make_document;
 
-std::set<crow::websocket::connection *> clients; // temporary
-
-// MongoDB initialization
-mongocxx::instance mongo_instance{};
-mongocxx::uri mongo_uri(MONGO_URI);
-mongocxx::client mongo_client(mongo_uri);
-
-int ping_mongo_connection()
-{
-	try
-	{
-		auto admin = mongo_client["admin"];
-		auto command = make_document(kvp("ping", 1));
-		auto result = admin.run_command(command.view());
-		std::cout << bsoncxx::to_json(result) << "\n";
-		std::cout << "Pinged your deployment. You successfully connected to MongoDB \n";
-	}
-	catch (const mongocxx::exception &e)
-	{
-		std::cerr << "An exception occured: " << e.what() << "\n";
-		return EXIT_FAILURE;
-	}
-}
-
-// Utility to validate JSON input
-bool is_valid_json(const crow::json::rvalue &body, const std::vector<std::string> &keys)
-{
-	for (const auto &key : keys)
-	{
-		if (!body.has(key))
-		{
-			return false;
-		}
-	}
-	return true;
-}
-
-// API: Create user account
-void register_account(crow::SimpleApp &app)
-{
-
-	CROW_ROUTE(app, "/register").methods("POST"_method)([](const crow::request &req)
-							    {
-                                                                    try
-                                                                    {
-                                                                            auto body = crow::json::load(req.body);
-
-                                                                            if (!is_valid_json(body, {"username", "password"}))
-                                                                            {
-
-                                                                                    return crow::response(400, "Invalid input");
-                                                                            }
-
-                                                                            auto db = mongo_client["chat_server"];
-                                                                            auto users_collection = db["users"];
-
-                                                                            // Check if user already exists
-                                                                            auto find_result = users_collection.find_one(make_document(kvp("username", body["username"].s())));
-                                                                            if (find_result)
-                                                                            {
-                                                                                    return crow::response(409, "User already exists");
-                                                                            }
-
-                                                                            // Insert new user
-                                                                            auto insert_result =users_collection.insert_one(make_document(
-                                                                            kvp("username",body["username"].s()),
-                                                                            kvp("password", body["password"].s()) // hash the password
-                                                                            ));
-                                                                        if(insert_result){
-                                                                                return crow::response(200, "User registered");
-                                                                            }
-
-                                                                }
-                                                                    catch (const std::exception &e)
-                                                                    {
-                                                                            std::cerr << e.what() << '\n';
-
-                                                                    } });
-}
-
-void login(crow::SimpleApp &app)
-{
-	CROW_ROUTE(app, "/login")
-	    .methods("POST"_method)([](const crow::request &req)
-				    {
-                                        try{
-                                                auto body = crow::json::load(req.body);
-
-                                                if (!is_valid_json(body, {"username", "password"}))
-                                                {
-
-                                                        return crow::response(400, "Invalid input");
-                                                }
-
-                                                auto db = mongo_client["chat_server"];
-                                                auto users_collection = db["users"];
-
-                                                // Check if user exists
-                                                auto result = users_collection.find_one(make_document(
-                                                        kvp("username", body["username"].s()),
-                                                        kvp("password", body["password"].s())
-                                                        ));
-                                                if (result)
-                                                {
-                                                        return crow::response(200, "Successfully logged in");
-
-                                                }
-
-                                                return crow::response(409, "Invalid username or password!");
-
-                                        }
-                                        catch (const std::exception &e)
-                                        {
-                                                std::cerr << e.what() << '\n';
-
-                                        } });
-}
+std::unordered_map<std::string, crow::websocket::connection *> online_users; // maps _id to socket client
+std::set<crow::websocket::connection *> clients; // stores all open clients
+std::mutex online_users_mutex;
 
 // WebSocket: Handle messaging
 void websocket_chat(crow::SimpleApp &app)
@@ -155,16 +43,33 @@ void websocket_chat(crow::SimpleApp &app)
 			       std::string to = msg_json["to"].asString();
 			       std::string content = msg_json["content"].asString();
 
-                               for (auto client : clients)
-                               {
-                                       client->send_text(message);
-                               }
 
-                       })
-            .onclose([](crow::websocket::connection &conn, const std::string &reason)
-                     { std::cout << "WebSocket connection closed: " << reason << "\n"; });
+			       // Deliver message if the recipient is online
+			       std::lock_guard<std::mutex> lock(online_users_mutex);
+			       for (auto client : clients)
+			       {
+				       if (client != &conn)
+				       {
+					       client->send_text(message);
+				       }
+			       }
+
+		       })
+	    .onclose([](crow::websocket::connection &conn, const std::string &reason)
+		     { std::cout << "WebSocket connection closed: " << reason << "\n"; });
 }
 
+std::string load_html(const std::string &file_path)
+{
+	std::ifstream file(file_path);
+	if (!file.is_open())
+	{
+		return "<h1>Error: Could not open HTML file.</h1>";
+	}
+	std::stringstream buffer;
+	buffer << file.rdbuf();
+	return buffer.str();
+}
 
 int main()
 {
@@ -175,11 +80,13 @@ int main()
 
 		app.loglevel(crow::LogLevel::Debug);
 
+		init_mongo_connection();
 		ping_mongo_connection();
 
 		// Register APIs and WebSocket
 		register_account(app);
 		login(app);
+		getContacts(app);
 		websocket_chat(app);
 
 		CROW_ROUTE(app, "/web")
@@ -198,8 +105,8 @@ int main()
 		CROW_ROUTE(app, "/web/chat")
 		([]()
 		 {
-                         std::string html_content = load_html("templates/chat/index.html");
-                         return html_content; });
+		         std::string html_content = load_html("templates/chat/index.html");
+		         return html_content; });
 
 		// Start server
 		app.port(8080).multithreaded().run();
