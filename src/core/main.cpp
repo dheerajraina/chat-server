@@ -2,19 +2,19 @@
 #include <iostream>
 #include <unordered_map>
 #include <mutex>
-#include <bsoncxx/json.hpp>
+// #include <bsoncxx/json.hpp>
 #include <jsoncpp/json/json.h>
 #include <set>
 #include <fstream>
 #include <sstream>
 #include <string>
-#include "modules/databases/mongodb_client.h"
-#include "modules/auth/routes/signup_route.h"
-#include "modules/auth/routes/login_route.h"
-#include "modules/user/routes/get_contacts_route.h"
+// #include "modules/databases/mongodb_client.h"
+// #include "modules/auth/routes/signup_route.h"
+// #include "modules/auth/routes/login_route.h"
+// #include "modules/user/routes/get_contacts_route.h"
 
-using bsoncxx::builder::basic::kvp;
-using bsoncxx::builder::basic::make_document;
+// using bsoncxx::builder::basic::kvp;
+// using bsoncxx::builder::basic::make_document;
 
 std::unordered_map<std::string, crow::websocket::connection *> online_users; // maps _id to socket client
 std::set<crow::websocket::connection *> clients; // stores all open clients
@@ -43,6 +43,21 @@ void websocket_chat(crow::SimpleApp &app)
 			       std::string to = msg_json["to"].asString();
 			       std::string content = msg_json["content"].asString();
 
+			       // Store in MongoDB
+			       //     auto db = mongo_client["chat_app"];
+			       //     auto messages = db["messages"];
+			       //     auto doc = bsoncxx::builder:: document{}
+			       //                << "from" << from
+			       //                << "to" << to
+			       //                << "content" << content
+			       //                << "timestamp" << bsoncxx::types::b_date{std::chrono::system_clock::now()}
+			       //                << bsoncxx::builder::stream::finalize;
+
+			       //     messages.insert_one(doc.view());
+
+			       // Push to Redis for quick access
+			       //     redis.rpush("chat:" + from + ":" + to, content);
+			       //     redis.ltrim("chat:" + from + ":" + to, -10, -1);  // Keep only the last 10 messages
 
 			       // Deliver message if the recipient is online
 			       std::lock_guard<std::mutex> lock(online_users_mutex);
@@ -53,7 +68,9 @@ void websocket_chat(crow::SimpleApp &app)
 					       client->send_text(message);
 				       }
 			       }
-
+			       //     if (online_users.find(to) != online_users.end()) {
+			       //         online_users[to]->send_text(message);
+			       //     }
 		       })
 	    .onclose([](crow::websocket::connection &conn, const std::string &reason)
 		     { std::cout << "WebSocket connection closed: " << reason << "\n"; });
@@ -80,13 +97,13 @@ int main()
 
 		app.loglevel(crow::LogLevel::Debug);
 
-		init_mongo_connection();
-		ping_mongo_connection();
+		// init_mongo_connection();
+		// ping_mongo_connection();
 
 		// Register APIs and WebSocket
-		register_account(app);
-		login(app);
-		getContacts(app);
+		// register_account(app);
+		// login(app);
+		// getContacts(app);
 		websocket_chat(app);
 
 		CROW_ROUTE(app, "/web")
@@ -105,7 +122,7 @@ int main()
 		CROW_ROUTE(app, "/web/chat")
 		([]()
 		 {
-		         std::string html_content = load_html("templates/chat/index.html");
+		         std::string html_content = load_html("build/templates/chat/index.html");
 		         return html_content; });
 
 		// Start server
