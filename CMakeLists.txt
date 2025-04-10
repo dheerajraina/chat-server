@@ -60,13 +60,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(PkgConfig REQUIRED)
 
 # MongoDB C++ Driver
-pkg_check_modules(LIBMONGOCXX REQUIRED libmongocxx)
-pkg_check_modules(LIBBSONCXX REQUIRED libbsoncxx)
+# pkg_check_modules(LIBMONGOCXX REQUIRED libmongocxx)
+# pkg_check_modules(LIBBSONCXX REQUIRED libbsoncxx)
 
 
 
 # Redis++
-pkg_check_modules(REDISPP REQUIRED redis++)
+# pkg_check_modules(REDISPP REQUIRED redis++)
 
 
 find_package(jsoncpp REQUIRED)
@@ -82,11 +82,11 @@ link_directories(/usr/local/lib)
 
 set(SRC_FILES
     ${SRC_DIR}/core/main.cpp
-    ${SRC_DIR}/core/server.cpp
-    ${SRC_DIR}/modules/databases/mongodb/mongodb_client.cpp
-    ${SRC_DIR}/modules/auth/routes/signup_route.cpp
-    ${SRC_DIR}/modules/auth/routes/login_route.cpp
-    ${SRC_DIR}/modules/user/routes/get_contacts_route.cpp
+    # ${SRC_DIR}/core/server.cpp
+    # ${SRC_DIR}/modules/databases/mongodb/mongodb_client.cpp
+    # ${SRC_DIR}/modules/auth/routes/signup_route.cpp
+    # ${SRC_DIR}/modules/auth/routes/login_route.cpp
+    # ${SRC_DIR}/modules/user/routes/get_contacts_route.cpp
 )
 
 include_directories(${INCLUDE_DIR})
@@ -98,9 +98,9 @@ add_executable(chat_server ${SRC_FILES})
 # Link libraries
 target_link_libraries(chat_server
     PUBLIC
-        ${LIBMONGOCXX_LIBRARIES}
-        ${LIBBSONCXX_LIBRARIES}
-        ${REDISPP_LIBRARIES}
+        # ${LIBMONGOCXX_LIBRARIES}
+        # ${LIBBSONCXX_LIBRARIES}
+        # ${REDISPP_LIBRARIES}
         jsoncpp
 )
 
@@ -113,15 +113,15 @@ target_include_directories(chat_server PRIVATE
 
 # Include directories
 target_include_directories(chat_server PRIVATE
-    ${LIBMONGOCXX_INCLUDE_DIRS}
-    ${LIBBSONCXX_INCLUDE_DIRS}
-    ${REDISPP_INCLUDE_DIRS}
-    /usr/local/include/mongocxx/v_noabi  # Add this to include the correct versioning path
+    # ${LIBMONGOCXX_INCLUDE_DIRS}
+    # ${LIBBSONCXX_INCLUDE_DIRS}
+    # ${REDISPP_INCLUDE_DIRS}
+    # /usr/local/include/mongocxx/v_noabi  # Add this to include the correct versioning path
 )
 
 # Compiler flags
 target_compile_options(chat_server PRIVATE
-    ${LIBMONGOCXX_CFLAGS_OTHER}
-    ${LIBBSONCXX_CFLAGS_OTHER}
-    ${REDISPP_CFLAGS_OTHER}
+    # ${LIBMONGOCXX_CFLAGS_OTHER}
+    # ${LIBBSONCXX_CFLAGS_OTHER}
+    # ${REDISPP_CFLAGS_OTHER}
 )
