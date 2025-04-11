@@ -13,7 +13,7 @@ let msgContainer = document.getElementById("message-container");
 
 window.onload = () => {
         try {
-                ws = new WebSocket(`ws://localhost:8080/ws`);
+                ws = new WebSocket("wss://"+"chat-server-wq7m.onrender.com"+"/ws");
                 ws.onopen = () => console.log('Connected to WebSocket');
 
                 ws.onmessage = (event) => {
