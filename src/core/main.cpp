@@ -19,6 +19,8 @@
 std::unordered_map<std::string, crow::websocket::connection *> online_users; // maps _id to socket client
 std::set<crow::websocket::connection *> clients;			     // stores all open clients
 std::mutex online_users_mutex;
+std::mutex clients_mutex;
+
 
 // WebSocket: Handle messaging
 void websocket_chat(crow::SimpleApp &app)
@@ -26,6 +28,7 @@ void websocket_chat(crow::SimpleApp &app)
 	CROW_ROUTE(app, "/ws").websocket(&app).onopen([](crow::websocket::connection &conn)
 						      {
                                                               std::cout << "WebSocket connection opened\n";
+							      std::lock_guard<std::mutex> lock(clients_mutex);
                                                               clients.insert(&conn); })
 
 	    .onmessage([](crow::websocket::connection &conn, const std::string &message, bool is_binary)
@@ -60,7 +63,8 @@ void websocket_chat(crow::SimpleApp &app)
 			       //     redis.ltrim("chat:" + from + ":" + to, -10, -1);  // Keep only the last 10 messages
 
 			       // Deliver message if the recipient is online
-			       std::lock_guard<std::mutex> lock(online_users_mutex);
+			//        std::lock_guard<std::mutex> lock(online_users_mutex);
+			       std::lock_guard<std::mutex> lock(clients_mutex);
 			       for (auto client : clients)
 			       {
 				       if (client != &conn)
@@ -73,7 +77,13 @@ void websocket_chat(crow::SimpleApp &app)
 			       //     }
 		       })
 	    .onclose([](crow::websocket::connection &conn, const std::string &reason, uint16_t)
-		     { std::cout << "WebSocket connection closed: " << reason << "\n"; });
+		     {
+			std::cout << "WebSocket connection closed: " << reason << "\n";
+			{
+				std::lock_guard<std::mutex> lock(clients_mutex);
+        			clients.erase(&conn);
+			}
+		 });
 }
 
 std::string load_html(const std::string &file_path)
