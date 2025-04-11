@@ -33,7 +33,7 @@ WORKDIR /app/build
 COPY . /app
 
 # Build the C++ app
-RUN rm -rf CMakeCache.txt CMakeFiles && cmake ..
+RUN rm -rf CMakeCache.txt CMakeFiles && cmake .. && cmake --build . --config RELEASE
 
 # Expose necessary ports (update the port number if required)
 EXPOSE 8080

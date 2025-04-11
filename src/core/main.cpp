@@ -17,7 +17,7 @@
 // using bsoncxx::builder::basic::make_document;
 
 std::unordered_map<std::string, crow::websocket::connection *> online_users; // maps _id to socket client
-std::set<crow::websocket::connection *> clients; // stores all open clients
+std::set<crow::websocket::connection *> clients;			     // stores all open clients
 std::mutex online_users_mutex;
 
 // WebSocket: Handle messaging
@@ -72,7 +72,7 @@ void websocket_chat(crow::SimpleApp &app)
 			       //         online_users[to]->send_text(message);
 			       //     }
 		       })
-	    .onclose([](crow::websocket::connection &conn, const std::string &reason)
+	    .onclose([](crow::websocket::connection &conn, const std::string &reason, uint16_t)
 		     { std::cout << "WebSocket connection closed: " << reason << "\n"; });
 }
 
