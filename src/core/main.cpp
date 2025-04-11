@@ -122,7 +122,7 @@ int main()
 		CROW_ROUTE(app, "/web/chat")
 		([]()
 		 {
-		         std::string html_content = load_html("build/templates/chat/index.html");
+		         std::string html_content = load_html("templates/chat/index.html");
 		         return html_content; });
 
 		// Start server
