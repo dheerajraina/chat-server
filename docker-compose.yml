@@ -1,0 +1,10 @@
+version: '3'
+services:
+  chat_server:
+    image: chat_server
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    command: ["./chat_server"]
